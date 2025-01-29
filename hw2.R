@@ -260,14 +260,20 @@ ggplot(dt, aes(x = `tv_views(millions)`, y = view_count)) +
   theme_minimal()
 
 dt[which.max(view_count)]
+dt[which.max(like_count)]
 
-ggplot(dt, aes(x = view_count, y = like_count)) +
+setnames(dt, "tv_views(millions)", "tv_views_million")
+
+#chart 7 tv vs yt likes - dos tv engagment ranslate to online enegment too? 
+ggplot(dt, aes(x = tv_views_million, y = like_count)) +
   geom_point(alpha = 0.6) +
-  geom_point(data = dt[which.max(view_count)], aes(x = view_count, y = like_count), 
+  geom_point(data = dt[which.max(like_count)], aes(x = tv_views_million , y = like_count), 
              color = "red", size = 3) +
+  scale_x_continuous(labels = scales::comma) +  # No scientific notation
+  scale_y_continuous(labels = scales::comma) +  # No scientific notation
   labs(title = "YouTube Views vs. Likes",
-       x = "YouTube Views", y = "Likes",
-       subtitle = "Red point = Outlier with 176M Views") +
+       x = "TV Views (millions)", y = "Likes",
+       subtitle = "Red point = Outlier with 275k Youtube Likes") +
   theme_minimal()
 
 ## #############################################################################
