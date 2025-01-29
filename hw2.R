@@ -10,6 +10,7 @@ sb <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytue
 sb <- as.data.table(sb)
 skim(sb)
 
+## chnage this so it reads csv diteclty from github 
 superbowl_scraped <- read_csv("superbowl_scraped.csv")
 superbowl_scraped <- as.data.table(superbowl_scraped)
 #View(superbowl_scraped)
@@ -244,15 +245,33 @@ ggplot() +
         plot.margin = margin(t = 20, r = 0, b = 10, l = 10)
         )  # Better x-axis rotation
 
- #########################
-#what attributes resulted in higher negative likes, is it influenced more by brand or by the featuresof the ad? 
+## #############################################################################
+## How do TV viewership and ad revenue relate to engagement metrics (likes, comments, and views)?
+## #############################################################################
+#Some years might have had higher TV viewership, meaning more people saw the ads—does this mean those ads got more engagement on YouTube?
+#Ad revenue is a measure of how much was spent on advertising—but does more revenue mean the ads performed better online?
+#This could reveal whether traditional TV exposure still influences online engagement, or if some brands are just inherently better at making viral ads.
 
-#is there a trend overtime in sb ads? features 
+ggplot(dt, aes(x = `tv_views(millions)`, y = view_count)) +
+  geom_point(alpha = 0.6, color = "blue") +
+  geom_smooth(method = "lm", se = FALSE, color = "red") + 
+  labs(title = "Do More TV Views Mean More YouTube Likes?",
+       x = "TV Views (millions)", y = "YouTube views") +
+  theme_minimal()
 
-#what about trend swithonline engagment on yoututbe, do we see a decline in total likes that might signal the migration to toher sm like insta tiktok? 
+dt[which.max(view_count)]
 
+ggplot(dt, aes(x = view_count, y = like_count)) +
+  geom_point(alpha = 0.6) +
+  geom_point(data = dt[which.max(view_count)], aes(x = view_count, y = like_count), 
+             color = "red", size = 3) +
+  labs(title = "YouTube Views vs. Likes",
+       x = "YouTube Views", y = "Likes",
+       subtitle = "Red point = Outlier with 176M Views") +
+  theme_minimal()
 
-
-
+## #############################################################################
+## notes
+## #############################################################################
 #weakness in data - engement is tn the only form of interaction or metir of success for an ad - we can hae enegemnt on othrt social sites, offline enganement, incresed sales.... it is hard to measure 
 # but based on this data we cna see that ..... 
