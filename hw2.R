@@ -10,11 +10,10 @@ sb <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytue
 sb <- as.data.table(sb)
 skim(sb)
 
-## chnage this so it reads csv diteclty from github 
 superbowl_scraped <- read_csv("https://raw.githubusercontent.com/ghadena/C3-R/refs/heads/main/superbowl_scraped.csv")
 superbowl_scraped <- as.data.table(superbowl_scraped)
 superbowl_scraped <- superbowl_scraped[year >= 2000, ] #filtering for years after 2000 
-#View(superbowl_scraped)
+skim(superbowl_scraped)
 
 dt <- merge(sb, superbowl_scraped, by = "year")
 skim(dt)
@@ -153,7 +152,7 @@ attribute_contribution <- dt[, .(
   funny_pct = mean(funny, na.rm = TRUE) * 100,
   celebrity_pct = mean(celebrity, na.rm = TRUE) * 100,
   animals_pct = mean(animals, na.rm = TRUE) * 100,
-  product_pct = mean(show_product_quickly, na.rm = TRUE) * 100,
+  product_pct = mean(show_product_quickly, na.rm = TRUE) * 100,s
   patriotic_pct = mean(patriotic, na.rm = TRUE) * 100,
   danger_pct = mean(danger, na.rm = TRUE) * 100,
   sex_pct = mean(use_sex, na.rm = TRUE) * 100,
@@ -162,9 +161,10 @@ attribute_contribution <- dt[, .(
   avg_dislikes = mean(dislike_count, na.rm = TRUE), 
   avg_views = mean(view_count, na.rm = TRUE)  # Removed * 100
 ), by = brand][order(-avg_likes)]
+
 print(attribute_contribution)
 
-#visualising results 
+# visualizing results 
 
 # Normalize attribute percentages to sum to 100% per brand
 attribute_contribution[, total_pct := funny_pct + celebrity_pct + animals_pct + product_pct + patriotic_pct + danger_pct + sex_pct]
@@ -259,7 +259,7 @@ ggplot(dt, aes(x = tv_views_million, y = like_count)) +
   geom_point(data = dt[which.max(like_count)], aes(x = tv_views_million , y = like_count), 
              color = "red", size = 3) +
   scale_x_continuous(labels = scales::comma) +  # No scientific notation
-  scale_y_continuous(labels = scales::comma) +  # No scientific notation
+    scale_y_continuous(labels = scales::comma) +  # No scientific notation
   labs(title = "YouTube Views vs. Likes",
        x = "TV Views (millions)", y = "Likes",
        subtitle = "Red point = Outlier (Doritos 2012 ad) with 275k Youtube Likes") +
@@ -342,3 +342,4 @@ ggplot(yearly_engagement, aes(x = tv_views_million, y = avg_likes, color = year)
 ## #############################################################################
 #weakness in data - engement is tn the only form of interaction or metir of success for an ad - we can hae enegemnt on othrt social sites, offline enganement, incresed sales.... it is hard to measure 
 # but based on this data we cna see that ..... 
+
