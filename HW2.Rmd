@@ -1,0 +1,172 @@
+---
+title: "R_project"
+output: html_document
+date: "2025-01-31"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Super Bowl Ad Engagement Analysis
+
+Introduction
+
+Super Bowl advertisements are a crucial aspect of the annual sports event, attracting millions of viewers and significant brand investment. This project analyzes Super Bowl ad engagement metrics to determine what factors contribute to higher audience interactions, particularly through YouTube likes and comments. The study also explores brand performance, humor's impact on engagement, and the relationship between TV viewership and online interactions.
+
+Dataset Overview
+
+The dataset consists of Super Bowl advertisements from 2000 onwards, enriched with additional metrics such as:
+
+  - Engagement Metrics: Likes, dislikes, comments, and views on YouTube
+  - Attributes: Whether the ad features humor, celebrities, animals, patriotic themes, danger, or explicit product placement  
+  - TV Metrics: TV views in millions, NFL revenue from advertisements
+  - Ad Descriptions: Brand, year, ad url
+
+The data was sourced from Tidy Tuesday data on GitHub and enriched using statista.
+
+⚠ Dataset Limitation:
+This dataset does not include all Super Bowl ads. Instead, it consists of 233 ads from the 10 brands that aired the most frequently during Super Bowls in the past two decades. The data was sourced from SuperBowlAds.com, meaning some brands and ads are missing.
+
+```{r imporitng libraries and data}
+library(data.table)
+library(skimr)
+library(readr)
+library(tidyr)
+library(ggplot2)
+library(scales)
+library(RColorBrewer)
+
+#superbowl data from tody tuesday 
+sb <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/main/data/2021/2021-03-02/youtube.csv')
+sb <- as.data.table(sb)
+skim(sb)
+
+#enriching the data by scraping data from Statista
+superbowl_scraped <- read_csv("https://raw.githubusercontent.com/ghadena/C3-R/refs/heads/main/superbowl_scraped.csv")
+superbowl_scraped <- as.data.table(superbowl_scraped)
+superbowl_scraped <- superbowl_scraped[year >= 2000, ] #filtering for years after 2000 
+skim(superbowl_scraped)
+```
+
+## Research Questions
+
+1. What attributes in Super Bowl ads contribute to higher engagement?
+
+Examining the impact of humor, celebrity appearances, patriotism, and other attributes on likes and comments.
+
+2. Why do funny ads get fewer likes and comments?
+
+Investigating whether humor interacts with other factors to influence engagement.
+
+3. Which brands consistently get the highest engagement, and why?
+
+Analyzing top advertisers based on engagement and identifying key patterns.
+
+4. How does TV viewership impact online engagement?
+
+Assessing whether years with higher TV views correspond to higher YouTube likes.
+
+## Data Processing and Cleaning
+
+Filtered dataset to include only years 2000 onwards.
+
+Merged additional data sources containing TV views and NFL ad revenue.
+
+Normalized brand engagement metrics to compare advertisers fairly.
+
+Handled missing values by omitting NA values from calculations.
+
+Converted categorical attributes to a long format for better visualization.
+
+```{r preparing data}
+
+# Merging 
+dt <- merge(sb, superbowl_scraped, by = "year")
+
+# Counting commercials by brand 
+sb[ , .N, by = .(brand)][order(-N)] 
+
+# Convert logical variables to long format
+logical_vars <- sb %>%
+  pivot_longer(cols = where(is.logical), names_to = "Variable", values_to = "Value")
+
+```
+## Attribute Analysis: What Makes Ads More Engaging?
+
+We examined seven key attributes across Super Bowl commercials:
+Humor, Celebrities, Animals, Patriotism, Danger, Sex Appeal and Product Placement
+
+Findings:
+- Funny ads receive fewer likes but more views, suggesting entertainment value but lower engagement.
+- Celebrity appearances strongly correlate with high likes, particularly for brands like NFL and Pepsi.
+- Product placement increases engagement, likely due to clear brand messaging.
+
+
+```{r Attribute analysis}
+
+# Define the list of categorical columns
+categories <- c("funny", "patriotic", "celebrity", "danger", "animals", "use_sex", "show_product_quickly")
+
+# Initialize an empty data.table to store results
+cat_agg <- data.table(category = character(), value = logical(), avg_likes = numeric(), avg_comments = numeric())
+
+# Loop through each category and compute avg_likes and avg_comments
+for (category in categories) {
+  temp_dt <- dt[, .(avg_likes = mean(like_count, na.rm = TRUE), 
+                    avg_comments = mean(comment_count, na.rm = TRUE)), 
+                by = category]
+  setnames(temp_dt, category, "value") # Rename the grouping column to a generic name "value"
+  temp_dt[, category := category]  # Add a new column to indicate the category name
+  cat_agg <- rbind(cat_agg, temp_dt, fill = TRUE)   # Bind the results to the main results_dt
+}
+setcolorder(cat_agg, c("category", "value", "avg_likes", "avg_comments")) # Reorder columns for clarity
+print(cat_agg)
+
+
+```
+
+Visualization:
+
+Bar charts comparing likes and comments for ads with and without each attribute.
+Stacked bar charts showing the percentage of each attribute used by major brands.
+
+```{r visuals}
+# chart 1: Plot logical variables
+ggplot(logical_vars, aes(x = Variable, fill = Value)) +
+  geom_bar(position = "dodge") +
+  ggtitle("Count of Logical Variables") +
+  xlab("Logical Variables") +
+  ylab("Count") +
+  theme_minimal() +
+  scale_fill_manual(values = c("TRUE" = "blue", "FALSE" = "red"))
+
+#chart 2 avg likes by cat 
+ggplot(cat_agg, aes(x = category, y = avg_likes, fill = value)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Average Likes by Category", x = "Category", y = "Average Likes", fill = "Value (TRUE/FALSE)") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+#chart 3 avg commnets by cat
+ggplot(cat_agg, aes(x = category, y = avg_comments, fill = value)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Average Comments by Category", x = "Category", y = "Average Comments", fill = "Value (TRUE/FALSE)") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+```
+
+##Trend Analysis: Humor and Engagement Over Time
+
+A time series analysis of funny vs. non-funny ads revealed that humor does not always translate to higher likes.
+The trend suggests that celebrity + humor leads to lower engagement, possibly due to a diluted brand message.
+
+
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
