@@ -4,23 +4,24 @@ library(readr)
 library(tidyr)
 library(ggplot2)
 library(scales)
-
+library(RColorBrewer)
 
 sb <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/main/data/2021/2021-03-02/youtube.csv')
 sb <- as.data.table(sb)
 skim(sb)
 
 ## chnage this so it reads csv diteclty from github 
-superbowl_scraped <- read_csv("superbowl_scraped.csv")
+superbowl_scraped <- read_csv("https://raw.githubusercontent.com/ghadena/C3-R/refs/heads/main/superbowl_scraped.csv")
 superbowl_scraped <- as.data.table(superbowl_scraped)
+superbowl_scraped <- superbowl_scraped[year >= 2000, ] #filtering for years after 2000 
 #View(superbowl_scraped)
 
 dt <- merge(sb, superbowl_scraped, by = "year")
 skim(dt)
 
 sb[ , min(year)]
-sb[ , .N, by = .(brand)][order(-N)]
-dt <- dt[year >= 2000, ]
+sb[ , .N, by = .(brand)][order(-N)] #counting commercials by brand 
+
 
 # Convert logical variables to long format
 logical_vars <- sb %>%
@@ -36,15 +37,14 @@ ggplot(logical_vars, aes(x = Variable, fill = Value)) +
   scale_fill_manual(values = c("TRUE" = "blue", "FALSE" = "red"))
 
 
-
 ## #############################################################################
-## what attribute in sb ads make them more engaging? 
+## what attribute in superbowl ads make them more engaging? 
 ## #############################################################################
 # Define the list of categorical columns
 categories <- c("funny", "patriotic", "celebrity", "danger", "animals", "use_sex", "show_product_quickly")
 
 # Initialize an empty data.table to store results
-results1_dt <- data.table(category = character(), value = logical(), avg_likes = numeric(), avg_comments = numeric())
+cat_agg <- data.table(category = character(), value = logical(), avg_likes = numeric(), avg_comments = numeric())
 
 # Loop through each category and compute avg_likes and avg_comments
 for (category in categories) {
@@ -53,20 +53,20 @@ for (category in categories) {
                 by = category]
   setnames(temp_dt, category, "value") # Rename the grouping column to a generic name "value"
   temp_dt[, category := category]  # Add a new column to indicate the category name
-  results1_dt <- rbind(results1_dt, temp_dt, fill = TRUE)   # Bind the results to the main results_dt
+  cat_agg <- rbind(cat_agg, temp_dt, fill = TRUE)   # Bind the results to the main results_dt
 }
-setcolorder(results1_dt, c("category", "value", "avg_likes", "avg_comments")) # Reorder columns for clarity
-print(results1_dt)
+setcolorder(cat_agg, c("category", "value", "avg_likes", "avg_comments")) # Reorder columns for clarity
+print(cat_agg)
 
 #chart 2 avg likes by cat 
-ggplot(results1_dt, aes(x = category, y = avg_likes, fill = value)) +
+ggplot(cat_agg, aes(x = category, y = avg_likes, fill = value)) +
   geom_bar(stat = "identity", position = "dodge") +
   labs(title = "Average Likes by Category", x = "Category", y = "Average Likes", fill = "Value (TRUE/FALSE)") +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 #chart 3 avg commnets by cat
-ggplot(results1_dt, aes(x = category, y = avg_comments, fill = value)) +
+ggplot(cat_agg, aes(x = category, y = avg_comments, fill = value)) +
   geom_bar(stat = "identity", position = "dodge") +
   labs(title = "Average Comments by Category", x = "Category", y = "Average Comments", fill = "Value (TRUE/FALSE)") +
   theme_minimal() +
@@ -107,7 +107,6 @@ dt[, .(avg_dislikes = mean(dislike_count, na.rm = TRUE)), by = funny]
 # also i discovered that this data didnt have the complete records of all suberbowl comercials, only of the top 10 companies that always adveritse since the last centrury 
 # data limited to: "E-Trade"   "Budweiser" "Bud Light" "Pepsi"     "Doritos"   "NFL"       "Toyota"    "Coca-Cola" "Hynudai"  "Kia". 
 dt[order(-like_count)][1:20, .(year, funny, brand, title, like_count, view_count)]
-unique(dt$favorite_count)
 
 ############ box plot 3x choose 1 - log scale 
 ggplot(dt, aes(x = as.factor(funny), y = like_count, fill = as.factor(funny))) +
@@ -246,21 +245,11 @@ ggplot() +
         )  # Better x-axis rotation
 
 ## #############################################################################
-## How do TV viewership and ad revenue relate to engagement metrics (likes, comments, and views)?
+## How does TV viewership relate to engagement metric (likes)?
 ## #############################################################################
 #Some years might have had higher TV viewership, meaning more people saw the ads—does this mean those ads got more engagement on YouTube?
 #Ad revenue is a measure of how much was spent on advertising—but does more revenue mean the ads performed better online?
 #This could reveal whether traditional TV exposure still influences online engagement, or if some brands are just inherently better at making viral ads.
-
-ggplot(dt, aes(x = `tv_views(millions)`, y = view_count)) +
-  geom_point(alpha = 0.6, color = "blue") +
-  geom_smooth(method = "lm", se = FALSE, color = "red") + 
-  labs(title = "Do More TV Views Mean More YouTube Likes?",
-       x = "TV Views (millions)", y = "YouTube views") +
-  theme_minimal()
-
-dt[which.max(view_count)]
-dt[which.max(like_count)]
 
 setnames(dt, "tv_views(millions)", "tv_views_million")
 
@@ -273,8 +262,80 @@ ggplot(dt, aes(x = tv_views_million, y = like_count)) +
   scale_y_continuous(labels = scales::comma) +  # No scientific notation
   labs(title = "YouTube Views vs. Likes",
        x = "TV Views (millions)", y = "Likes",
-       subtitle = "Red point = Outlier with 275k Youtube Likes") +
+       subtitle = "Red point = Outlier (Doritos 2012 ad) with 275k Youtube Likes") +
   theme_minimal()
+
+
+dt[which.max(view_count)]
+dt[which.max(like_count)]
+
+#i realised that the data for tv views in per yezr and the likes is per ad so this chart makes no sense, lets aggregate!
+
+#############
+# Aggregate data: Average likes per year
+yearly_engagement <- dt[, .(avg_likes = mean(like_count, na.rm = TRUE)), by = .(year, tv_views_million)]
+
+# Load necessary library for ColorBrewer palettes
+display.brewer.all()  # Shows all available palettes
+
+# Define a color palette for years
+year_colors <- brewer.pal(n = 12, name = "RdPu")  # Using a ColorBrewer palette
+
+# Scatter plot of TV views vs. avg likes per year with gradient color
+ggplot(yearly_engagement, aes(x = tv_views_million, y = avg_likes, color = year)) +
+  geom_point(size = 4) +  # Bigger points for visibility
+  geom_smooth(method = "lm", se = FALSE, color = "black", linetype = "dashed") +  # Trend line
+  scale_x_continuous(labels = scales::comma) +  
+  scale_y_continuous(labels = scales::comma) +  
+  scale_color_gradientn(colors = year_colors) +  # Apply ColorBrewer gradient
+  labs(
+    title = "TV Views vs. Average YouTube Likes per Year",
+    subtitle = "Analyzing whether years with more Super Bowl viewers generate more online engagement",
+    x = "TV Views (millions)",
+    y = "Average YouTube Likes",
+    color = "Year",  # Legend label
+    caption = "Each point represents a year. Trend line shows overall correlation."
+  ) +
+  theme_minimal()
+
+# Identify the outliers
+max_outlier <- yearly_engagement[which.max(avg_likes)]  # 2012 (doritos ad - 275k likes)
+second_outlier <- yearly_engagement[order(-avg_likes)][2]  # 2020 
+second_outlier
+
+dt[order(-like_count)][2]  # (nfl LIV comercial - 175k likes)
+
+# Scatter plot with annotations
+ggplot(yearly_engagement, aes(x = tv_views_million, y = avg_likes, color = year)) +
+  geom_point(size = 4) +  # Bigger points
+  geom_smooth(method = "lm", se = FALSE, color = "black", linetype = "dashed") +  # Trend line
+  scale_x_continuous(labels = scales::comma) +  
+  scale_y_continuous(labels = scales::comma) +  
+  scale_color_gradientn(colors = brewer.pal(n = 9, name = "RdPu")) +  # Apply color scheme
+  labs(
+    title = "TV Views vs. Average YouTube Likes per Year",
+    subtitle = "Analyzing whether years with more Super Bowl viewers generate more online engagement",
+    x = "TV Views (millions)",
+    y = "Average YouTube Likes",
+    color = "Year",
+    caption = "Each point represents a year. Trend line shows overall correlation."
+  ) +
+  theme_minimal() +
+  
+  # Annotation for Max Outlier (Doritos 2012 Ad)
+  annotate("text", x = max_outlier$tv_views_million, y = max_outlier$avg_likes + 5000,
+           label = "Doritos 2012 Ad\n~275k Likes", color = "black", size = 4, hjust = 0.5) +
+  geom_segment(aes(x = max_outlier$tv_views_million, y = max_outlier$avg_likes - 20000,
+                   xend = max_outlier$tv_views_million, yend = max_outlier$avg_likes - 5000),
+               arrow = arrow(length = unit(0.2, "cm")), color = "black") +
+  
+  # Annotation for Second Outlier
+  annotate("text", x = second_outlier$tv_views_million, y = second_outlier$avg_likes + 5000,
+           label = paste0("NFL 2020 Ad\n~178k Likes"), 
+           color = "black", size = 4, hjust = 0.5) +
+  geom_segment(aes(x = second_outlier$tv_views_million, y = second_outlier$avg_likes - 20000,
+                   xend = second_outlier$tv_views_million, yend = second_outlier$avg_likes - 5000),
+               arrow = arrow(length = unit(0.2, "cm")), color = "black")
 
 ## #############################################################################
 ## notes
